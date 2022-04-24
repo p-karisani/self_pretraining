@@ -662,8 +662,8 @@ class EBert:
         task_out.loss /= task_out.size
         perf = ELib.calculate_metrics(task_out.lbl_true, task_out.lbl_pred)
         if print_perf:
-            print('Test Results L1> Loss: {:.3f} F1: {:.3f} Pre: {:.3f} Rec: {:.3f}'.format(
-                task_out.loss, perf[0], perf[1], perf[2]) + '\t\t' + ELib.get_time())
+            print('Test Results L1> Loss: {:.3f} F1: {:.3f} Pre: {:.3f} Rec: {:.3f} Acc: {:.3f}'.format(
+                task_out.loss, perf[0], perf[1], perf[2], perf[3]) + '\t\t' + ELib.get_time())
         self.bert_classifier.cpu()
         return task_out.lbl_pred, task_out.logits, [result_vecs, result_vecs_detail], perf
 

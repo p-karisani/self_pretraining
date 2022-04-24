@@ -216,17 +216,13 @@ class ELib:
 
     @staticmethod
     def calculate_metrics(truths, preds):
-        # sklearn turns on warnings after we import it, call this to make sute it is silent
+        # sklearn turns on warnings after we import it, call this to make sure it is silent
         warnings.filterwarnings('ignore')
-        if 0 <= min(truths) and max(truths) <= 1 and 0 <= min(preds) and max(preds) <= 1:
-            F1 = metrics.f1_score(truths, preds)
-            Pre = metrics.precision_score(truths, preds)
-            Rec = metrics.recall_score(truths, preds)
-        else:
-            F1 = metrics.f1_score(truths, preds, average='weighted')
-            Pre = metrics.precision_score(truths, preds, average='weighted')
-            Rec = metrics.recall_score(truths, preds, average='weighted')
-        return [F1, Pre, Rec]
+        F1 = metrics.f1_score(truths, preds)
+        Pre = metrics.precision_score(truths, preds)
+        Rec = metrics.recall_score(truths, preds)
+        Acc = metrics.accuracy_score(truths, preds)
+        return [F1, Pre, Rec, Acc]
 
     @staticmethod
     def calculate_f1(truths, preds):
@@ -240,7 +236,7 @@ class ELib:
 
     @staticmethod
     def get_string_metrics(metrics):
-        return 'F1: {:.3f} Pre: {:.3f} Rec: {:.3f}'.format(metrics[0], metrics[1], metrics[2])
+        return 'F1: {:.3f} Pre: {:.3f} Rec: {:.3f} Acc: {:.3f}'.format(metrics[0], metrics[1], metrics[2], metrics[3])
 
     @staticmethod
     def majority_voting(lbl_list):

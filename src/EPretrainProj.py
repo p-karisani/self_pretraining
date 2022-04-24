@@ -159,7 +159,8 @@ class EPretrainProj:
     @staticmethod
     def __run_twin_net(config, lc, query, this_train_bundle, valid_bundle, test_bundle, unlabeled_bundle):
         pretrain_epochs_virtual = 1000000 # to make the learning-rate flat during pre-training
-        iterations = math.ceil(1 + (len(unlabeled_bundle.tws) - EPretrainProj.sample_size) / EPretrainProj.sample_step)
+        cur_sample_size = EPretrainProj.sample_size
+        iterations = math.ceil(1 + (len(unlabeled_bundle.tws) - cur_sample_size) / EPretrainProj.sample_step)
         teacher, student = None, None
         distr_info = None
         config.cls_type = EBertCLSType.simple
@@ -172,11 +173,11 @@ class EPretrainProj:
             del teacher
             teacher = student
             print(colored('>>> iteration {}/{}, sample-size {}'.format(
-                cur_itr + 1, iterations, EPretrainProj.sample_size), 'red'))
+                cur_itr + 1, iterations, cur_sample_size), 'red'))
             print(colored('teacher labeling ...', 'blue'))
             ## preparing unlabeled and labeling by teacher
             cur_unlabeled_bundle = copy.deepcopy(unlabeled_bundle)
-            EPretrainProj.__sample_from_unlabeled(cur_unlabeled_bundle, EPretrainProj.sample_size,
+            EPretrainProj.__sample_from_unlabeled(cur_unlabeled_bundle, cur_sample_size,
                                                   seed + 34 * (cur_itr + 1))
             unl_lbl, unl_lgs, _, _ = teacher.test(cur_unlabeled_bundle)
             distr_info = EPretrainProj.__twin_net_transform_labels(distr_info, unl_lbl, unl_lgs,
@@ -210,10 +211,10 @@ class EPretrainProj:
             student.train([this_train_bundle])
             gc.collect()
             torch.cuda.empty_cache()
-            if EPretrainProj.sample_size >= len(unlabeled_bundle.tws):
+            if cur_sample_size >= len(unlabeled_bundle.tws):
                 break
             seed = seed + 324 * (cur_itr + 1)
-            EPretrainProj.sample_size += EPretrainProj.sample_step
+            cur_sample_size += EPretrainProj.sample_step
         ## testing
         print(colored('testing ...', 'green'))
         _, logit_t, _, _ = teacher.test(test_bundle)
@@ -224,6 +225,7 @@ class EPretrainProj:
         del teacher, student
         gc.collect()
         torch.cuda.empty_cache()
+        return perf
 
     @staticmethod
     def run(cmd, per_query, train_path, valid_path_nullable, test_path_nullable,
@@ -239,6 +241,7 @@ class EPretrainProj:
         queries = [None]
         if per_query:
             queries = ETweet.get_queries(ETweet.load(train_path, ELoadType.none))
+        result = list()
         for q_ind, cur_query in enumerate(queries):
             if cur_query is not None:
                 print('>>>>>>>> "' + cur_query + '" began')
@@ -252,9 +255,10 @@ class EPretrainProj:
                     unlabeled_path_nullable, cur_query)
                 train_bundle = EPretrainProj.__stratified_sample_from_bundle(train_bundle, lc, config.seed, train_sample)
                 EPretrainProj.__sample_from_unlabeled(unlabeled_bundle, unlabeled_sample, config.seed)
-                EPretrainProj.__run_twin_net(config, lc, cur_query, train_bundle, valid_bundle, test_bundle,
-                                             unlabeled_bundle)
+                cur_perf = EPretrainProj.__run_twin_net(config, lc, cur_query, train_bundle, valid_bundle, test_bundle,
+                                                        unlabeled_bundle)
+                result.append(cur_perf)
                 ELib.PASS()
-        ELib.PASS()
+        return result[0]   # this code runs for one query
 
 

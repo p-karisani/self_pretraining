@@ -7,6 +7,8 @@ import torch
 warnings.filterwarnings('ignore')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 logging.getLogger('tensorflow').setLevel(logging.FATAL)
+from transformers import logging
+logging.set_verbosity_error()
 
 import sys
 
@@ -20,7 +22,9 @@ os.environ["TMP"] = temp_dir
 
 import argparse
 import platform
+import copy
 import numpy as np
+import statistics
 from self_pretraining.src.ELib import ELib
 from self_pretraining.src.EPretrainProj import EPretrainProj
 
@@ -73,18 +77,39 @@ def main():
 
     if args.cmd.startswith('bert'):
         seed = args.seed
+        result = list()
         for cur_itr in range(args.itr):
             print('------------------------------------')
             print('iteration ' + str(cur_itr + 1) + ' began with seed=\'' + str(seed) + '\'   at ' + ELib.get_time())
             if cur_itr >= 0:
                 output_dir = args.output_dir + '_' + str(cur_itr)
-                EPretrainProj.run(args.cmd, args.per_query, args.train_path, args.valid_path,
-                                  args.test_path, args.unlabeled_path, args.model_path,
-                                  args.model_path_2, args.lm_model_path, args.t_lbl_path_1,
-                                  args.t_lbl_path_2, output_dir, device, device_2, seed,
-                                  args.train_sample, args.unlabeled_sample)
+                cur_perf = EPretrainProj.run(args.cmd, args.per_query, args.train_path, args.valid_path,
+                                             args.test_path, args.unlabeled_path, args.model_path,
+                                             args.model_path_2, args.lm_model_path, args.t_lbl_path_1,
+                                             args.t_lbl_path_2, output_dir, device, device_2, seed,
+                                             args.train_sample, args.unlabeled_sample)
+                result.append(cur_perf)
             seed += 1230
+        result = np.array(result)
+        print_iteration_results(result)
         ELib.PASS()
+    ELib.PASS()
+
+def print_iteration_results(perfs):
+    print()
+    print('====================================')
+    for ind, cur_row in enumerate(perfs):
+        print('itr{:} > F1: {:.3f} Pre: {:.3f} Rec: {:.3f} Acc: {:.3f}'.format(
+            ind + 1, cur_row[0], cur_row[1], cur_row[2], cur_row[3]))
+    print('______________')
+    ave = perfs.mean(axis=0)
+    print('{:} > '
+          'F1: {:.3f}+/-{:.3f}   Pre: {:.3f}+/-{:.3f}   Rec: {:.3f}+/-{:.3f}   Acc: {:.3f}+/-{:.3f}'.format(
+        'average',
+        ave[0], statistics.stdev(perfs[:, 0]),
+        ave[1], statistics.stdev(perfs[:, 1]),
+        ave[2], statistics.stdev(perfs[:, 2]),
+        ave[3], statistics.stdev(perfs[:, 3])))
     ELib.PASS()
 
 if __name__ == "__main__":
@@ -92,9 +117,3 @@ if __name__ == "__main__":
     main()
     print("\nDone at", ELib.get_time())
     pass
-
-
-
-
-
-
